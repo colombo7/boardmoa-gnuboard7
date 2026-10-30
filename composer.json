@@ -1,0 +1,17 @@
+{
+    "name": "plugins/easyapplabs-boardmoa",
+    "description": "BoardMoa mobile app connector for Gnuboard7",
+    "type": "library",
+    "version": "1.0.25",
+    "autoload": {
+        "psr-4": {
+            "Plugins\\Easyapplabs\\Boardmoa\\": [
+                "src/",
+                "./"
+            ]
+        }
+    },
+    "require": {
+        "php": "^8.2"
+    }
+}
