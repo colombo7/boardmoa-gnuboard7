@@ -246,7 +246,7 @@ class My
             $page = self::pageText($slug);
             $agreements[] = ['index' => $i, 'title' => $page['title'] !== '' ? $page['title'] : Text::t($title), 'content' => $page['content'], 'required' => true];
         }
-        $field = fn (string $name, string $title, string $type) => ['name' => $name, 'title' => Text::t($title), 'type' => $type, 'required' => false, 'value' => '', 'options' => [], 'editable' => true];
+        $field = fn (string $name, string $title, string $type) => ['name' => $name, 'title' => Text::t($title), 'type' => $type, 'required' => false, 'value' => '', 'options' => [], 'parts' => [], 'editable' => true];
 
         return [
             'enabled' => true,
@@ -345,7 +345,7 @@ class My
         $fields = [];
         foreach (self::FIELDS as $name => [$title, $type]) {
             $fields[] = ['name' => $name, 'title' => Text::t($title), 'type' => $type, 'required' => false,
-                'value' => (string) ($me[$name] ?? ''), 'options' => [], 'editable' => true];
+                'value' => (string) ($me[$name] ?? ''), 'options' => [], 'parts' => [], 'editable' => true];
         }
 
         return [
