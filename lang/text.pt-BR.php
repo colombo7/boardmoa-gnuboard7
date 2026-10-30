@@ -97,4 +97,6 @@ return [
     '이메일' => 'E-mail',
     '최근 글' => 'Posts recentes',
     '휴대폰 번호' => 'Número de celular',
+    '블라인드 처리된 게시글입니다.' => 'Este post foi ocultado.',
+    '블라인드 처리된 댓글입니다.' => 'Este comentário foi ocultado.',
 ];

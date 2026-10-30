@@ -97,4 +97,6 @@ return [
     '이메일' => 'E-mail',
     '최근 글' => 'Messages récents',
     '휴대폰 번호' => 'Numéro de mobile',
+    '블라인드 처리된 게시글입니다.' => 'Ce message a été masqué.',
+    '블라인드 처리된 댓글입니다.' => 'Ce commentaire a été masqué.',
 ];

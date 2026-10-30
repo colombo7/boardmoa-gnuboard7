@@ -474,7 +474,13 @@ class Boards
         $settings = ['show_view_count' => $board['show_view_count'] ?? true, 'use_reaction' => $board['use_reaction'] ?? false];
         $item = self::summary($post + ['content_preview' => strip_tags((string) ($post['content'] ?? ''))], $slug, $settings, $categories);
         $readable = self::contentReadable($post);
+        $blinded = ($post['status'] ?? '') === 'blinded' && ! $readable;
         $item['content_html'] = $readable ? self::contentHtml($post) : null;
+        if ($blinded) {
+            // 관리자·신고로 가린 글: 웹 글 화면과 같은 안내 (비밀글이 아니다)
+            $item['content_html'] = '<p class="bh-blinded">'.htmlspecialchars(Text::t('블라인드 처리된 게시글입니다.'), ENT_QUOTES, 'UTF-8').'</p>';
+            $item['is_blinded'] = true;
+        }
         if (! $readable) {
             $item['thumbnail'] = null;
             $item['summary'] = '';
@@ -485,7 +491,7 @@ class Boards
         $isOwner = ! empty($post['is_owner']) || ! empty($post['is_author']);
         $manage = ! empty($abilities['can_manage']);
         $guestPost = ! empty($post['is_guest_post']);
-        $item['can_comment'] = $readable && ! empty($abilities['can_write_comments']) && ($board['use_comment'] ?? true);
+        $item['can_comment'] = $readable && ($post['status'] ?? '') !== 'blinded' && ! empty($abilities['can_write_comments']) && ($board['use_comment'] ?? true);
         $item['can_edit'] = $readable && ($manage || ($isOwner && ! $guestPost));
         $item['can_delete'] = $item['can_edit'];
         $item['password_edit'] = $guestPost && Api::$user === null && ! $item['can_edit'];
@@ -526,8 +532,23 @@ class Boards
         } else {
             $html = Html::absolutize($content, self::base());
         }
+        // 첨부 사진: 웹은 첨부파일 목록에 작은 썸네일로만 보인다. 앱(작은 화면)은 본문에 들어 있지 않은 첨부 사진을 본문 아래에 사진으로 보인다
+        $photos = '';
+        foreach ((array) ($post['attachments'] ?? []) as $a) {
+            if (! is_array($a) || empty($a['is_image']) || ($a['collection'] ?? 'attachments') !== 'attachments') {
+                continue;
+            }
+            $hash = (string) ($a['hash'] ?? '');
+            if ($hash === '' || str_contains($content, $hash)) {
+                continue;
+            }
+            $src = self::absolute($a['preview_url'] ?? null);
+            if ($src) {
+                $photos .= '<p class="bh-attached-photo"><img src="'.htmlspecialchars($src, ENT_QUOTES).'" alt="'.htmlspecialchars((string) ($a['original_filename'] ?? ''), ENT_QUOTES).'"></p>';
+            }
+        }
 
-        return $html;
+        return $html.$photos;
     }
 
     /** files: 첨부 [{file_srl, name, size, is_image, image_url, download}] */
@@ -619,6 +640,7 @@ class Boards
             $author = (array) ($c['author'] ?? []);
             $mine = ! empty($c['is_author']) || ! empty($c['is_owner']);
             $deleted = ! empty($c['deleted_at']);
+            $blindedComment = ($c['status'] ?? '') === 'blinded';
             $guest = ! empty($c['is_guest_comment']);
             $counts = (array) ($c['reaction_counts'] ?? []);
             $up = $types['like'] ?? null;
@@ -634,7 +656,9 @@ class Boards
                 'is_mine' => $mine,
                 'regdate' => self::iso($c['created_at'] ?? null),
                 'is_secret' => ! empty($c['is_secret']),
-                'content_html' => $deleted ? '' : nl2br(htmlspecialchars((string) ($c['content'] ?? ''), ENT_QUOTES, 'UTF-8')),
+                'content_html' => $deleted ? '' : ($blindedComment && (string) ($c['content'] ?? '') === ''
+                    ? htmlspecialchars(Text::t('블라인드 처리된 댓글입니다.'), ENT_QUOTES, 'UTF-8')
+                    : nl2br(htmlspecialchars((string) ($c['content'] ?? ''), ENT_QUOTES, 'UTF-8'))),
                 'vote_count' => $up !== null ? (int) ($counts[$up] ?? 0) : 0,
                 'vote' => $useVote && ! $deleted ? [
                     'up' => ['enabled' => $up !== null, 'count' => $up !== null ? (int) ($counts[$up] ?? 0) : 0],

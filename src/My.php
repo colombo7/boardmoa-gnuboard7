@@ -152,7 +152,7 @@ class My
             $items[] = [
                 'notify' => (string) $row['id'],
                 'text' => $text !== '' ? $text : $body,
-                'url' => Boards::absolute(is_string($row['url'] ?? null) ? $row['url'] : null) ?? Boards::base().'/',
+                'url' => self::notifyUrl($row),
                 'regdate' => Boards::iso($row['created_at'] ?? null),
                 'readed' => ! empty($row['read_at']),
                 'nick_name' => '',
@@ -163,6 +163,24 @@ class My
 
         return ['notifications' => $items, 'page' => (int) ($pagination['current_page'] ?? 1),
             'total_pages' => max(1, (int) ($pagination['last_page'] ?? 1)), 'unread' => self::notifyCount()['unread']];
+    }
+
+    /**
+     * 알림을 눌렀을 때 갈 곳: 앱이 여는 글·게시판·페이지 주소만 준다. 그 밖(가입 환영의 웹 마이페이지 등)은 null —
+     * 앱은 주소가 없으면 읽음만 표시하고 웹으로 넘기지 않는다
+     */
+    private static function notifyUrl(array $row): ?string
+    {
+        $url = $row['url'] ?? ($row['data']['click_url'] ?? null);
+        if (! is_string($url) || $url === '') {
+            return null;
+        }
+        $path = (string) parse_url($url, PHP_URL_PATH);
+        if (! preg_match('#^/(board/[A-Za-z0-9_\-]+(/\d+)?|page/[A-Za-z0-9_\-]+)/?$#', $path)) {
+            return null;
+        }
+
+        return Boards::absolute($url);
     }
 
     public static function notifyRead(): array
@@ -253,12 +271,13 @@ class My
             'web_url' => Boards::base().'/register',
             'basic' => [
                 ['name' => 'email_address', 'title' => Text::t('이메일'), 'required' => true],
-                ['name' => 'nick_name', 'title' => Text::t('이름'), 'required' => true],
+                ['name' => 'user_name', 'title' => Text::t('이름'), 'required' => true],
+                ['name' => 'nick_name', 'title' => Text::t('닉네임'), 'required' => false],
             ],
             'agreements' => $agreements,
             'password_hint' => $hint,
             'needs_confirm' => false,
-            'fields' => [$field('nickname', '닉네임', 'text'), $field('mobile', '휴대폰 번호', 'tel'), $field('phone', '전화번호', 'tel')],
+            'fields' => [$field('mobile', '휴대폰 번호', 'tel'), $field('phone', '전화번호', 'tel')],
         ];
     }
 
@@ -293,13 +312,17 @@ class My
         $fields = (array) Api::$request->input('fields', []);
         $body = [
             'email' => trim((string) Api::param('email_address', '')),
-            'name' => trim((string) Api::param('nick_name', '')),
+            // 이름: 1.0.29~ user_name 칸, 1.0.27·1.0.28 양식(이름을 nick_name 칸으로)을 받은 앱은 nick_name
+            'name' => trim((string) (Api::param('user_name') ?? Api::param('nick_name', ''))),
             'password' => $password,
             'password_confirmation' => $password,
             'agree_terms' => in_array(0, $accepted, true),
             'agree_privacy' => in_array(1, $accepted, true),
             'language' => Text::engineLocale(),
         ];
+        if (Api::param('user_name') !== null && trim((string) Api::param('nick_name', '')) !== '') {
+            $body['nickname'] = trim((string) Api::param('nick_name'));
+        }
         foreach (['nickname', 'mobile', 'phone'] as $name) {
             $value = $fields[$name] ?? null;
             if (is_string($value) && trim($value) !== '') {
@@ -342,14 +365,16 @@ class My
     public static function form(): array
     {
         $me = Engine::data('GET', self::ME);
-        $fields = [];
+        // 이름(name): 웹 회원정보 수정의 '이름' 칸 = 글쓴이로 보이는 이름 (필수). 앱의 '닉네임' 칸은 엔진 닉네임(nickname)
+        $fields = [['name' => 'name', 'title' => Text::t('이름'), 'type' => 'text', 'required' => true,
+            'value' => (string) ($me['name'] ?? ''), 'options' => [], 'parts' => [], 'editable' => true]];
         foreach (self::FIELDS as $name => [$title, $type]) {
             $fields[] = ['name' => $name, 'title' => Text::t($title), 'type' => $type, 'required' => false,
                 'value' => (string) ($me[$name] ?? ''), 'options' => [], 'parts' => [], 'editable' => true];
         }
 
         return [
-            'nick_name' => (string) ($me['name'] ?? ''),
+            'nick_name' => (string) ($me['nickname'] ?? ''),
             'email_address' => (string) ($me['email'] ?? ''),
             'profile_image' => Boards::absolute($me['avatar'] ?? null),
             'can_change_nickname' => true,
@@ -380,16 +405,19 @@ class My
     {
         self::verifyCurrent();
         $me = Engine::data('GET', self::ME);
-        $body = ['name' => (string) ($me['name'] ?? ''), 'email' => (string) ($me['email'] ?? '')];
+        $body = ['name' => (string) ($me['name'] ?? ''), 'nickname' => $me['nickname'] ?? null, 'email' => (string) ($me['email'] ?? '')];
         foreach (array_keys(self::FIELDS) as $name) {
             $body[$name] = $me[$name] ?? null;
         }
         $nick = Api::param('nick_name');
-        if ($nick !== null && trim($nick) !== '') {
-            $body['name'] = trim($nick);
+        if ($nick !== null) {
+            $body['nickname'] = trim($nick) === '' ? null : trim($nick);
         }
         $fields = Api::$request->input('fields');
         if (is_array($fields)) {
+            if (isset($fields['name']) && is_string($fields['name']) && trim($fields['name']) !== '') {
+                $body['name'] = trim($fields['name']);
+            }
             foreach ($fields as $name => $value) {
                 if (isset(self::FIELDS[$name]) && (is_string($value) || $value === null)) {
                     $body[$name] = $value === '' ? null : $value;
