@@ -12,7 +12,7 @@ use Symfony\Component\HttpFoundation\Response;
  */
 class Api
 {
-    const VERSION = '1.0.26';
+    const VERSION = '1.0.27';
 
     /** route => [메서드, 로그인 필요(true)/선택(false)/토큰 안 봄(null), 처리] */
     private const ROUTES = [
@@ -50,6 +50,7 @@ class Api
         'member.menu' => ['GET', false, [My::class, 'memberMenu']],
         'member.info' => ['GET', true, [My::class, 'memberInfo']],
         'signup.form' => ['GET', false, [My::class, 'signupForm']],
+        'signup' => ['POST', null, [My::class, 'signup']],
         'me.form' => ['GET', true, [My::class, 'form']],
         'me.update' => ['POST', true, [My::class, 'update']],
         'me.password' => ['POST', true, [My::class, 'password']],

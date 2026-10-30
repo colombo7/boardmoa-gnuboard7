@@ -233,12 +233,94 @@ class My
         ];
     }
 
-    // ---- 가입 · 탈퇴 (웹에서)
+    // ---- 가입 (엔진 /api/auth/register: 웹 가입 화면과 같은 검사) · 탈퇴 (웹에서)
 
+    /** 가입 양식: 웹 가입 화면(Basic 템플릿)과 같은 칸과 약관 두 개(이용약관·개인정보 처리방침 페이지) */
     public static function signupForm(): array
     {
-        return ['enabled' => true, 'web_only' => true, 'web_url' => Boards::base().'/register', 'basic' => [], 'agreements' => [],
-            'password_hint' => '', 'needs_confirm' => false, 'fields' => []];
+        $min = (int) g7_core_settings('security.password_min_length', 8);
+        $special = (bool) g7_core_settings('security.require_password_special_char', false);
+        $hint = $special ? Text::t('비밀번호는 {0}자 이상, 특수문자를 넣어 정해 주세요.', max(1, $min)) : Text::t('비밀번호는 {0}자 이상으로 정해 주세요.', max(1, $min));
+        $agreements = [];
+        foreach ([['terms', '이용약관'], ['privacy', '개인정보 처리방침']] as $i => [$slug, $title]) {
+            $page = self::pageText($slug);
+            $agreements[] = ['index' => $i, 'title' => $page['title'] !== '' ? $page['title'] : Text::t($title), 'content' => $page['content'], 'required' => true];
+        }
+        $field = fn (string $name, string $title, string $type) => ['name' => $name, 'title' => Text::t($title), 'type' => $type, 'required' => false, 'value' => '', 'options' => [], 'editable' => true];
+
+        return [
+            'enabled' => true,
+            'web_url' => Boards::base().'/register',
+            'basic' => [
+                ['name' => 'email_address', 'title' => Text::t('이메일'), 'required' => true],
+                ['name' => 'nick_name', 'title' => Text::t('이름'), 'required' => true],
+            ],
+            'agreements' => $agreements,
+            'password_hint' => $hint,
+            'needs_confirm' => false,
+            'fields' => [$field('nickname', '닉네임', 'text'), $field('mobile', '휴대폰 번호', 'tel'), $field('phone', '전화번호', 'tel')],
+        ];
+    }
+
+    /** 약관 페이지(sirsoft-page)의 제목과 글자만의 내용 — 웹 가입 화면의 약관 창과 같은 페이지 */
+    private static function pageText(string $slug): array
+    {
+        [$status, $json] = Engine::call('GET', '/api/modules/sirsoft-page/pages/'.$slug);
+        if ($status !== 200 || ! is_array($json)) {
+            return ['title' => '', 'content' => ''];
+        }
+        $page = (array) ($json['data'] ?? []);
+        $title = $page['title'] ?? '';
+        $content = $page['content'] ?? '';
+        if (is_array($title)) {
+            $title = $title[app()->getLocale()] ?? reset($title);
+        }
+        if (is_array($content)) {
+            $content = $content[app()->getLocale()] ?? reset($content);
+        }
+        $text = preg_replace('#<(br|/p|/h[1-6]|/li|/div|/tr)\b[^>]*>#i', "\n", (string) $content) ?? '';
+        $text = html_entity_decode(strip_tags($text), ENT_QUOTES | ENT_HTML5, 'UTF-8');
+        $text = trim(preg_replace("/\n{3,}/", "\n\n", preg_replace("/[ \t]+\n/", "\n", $text) ?? '') ?? '');
+
+        return ['title' => (string) $title, 'content' => $text];
+    }
+
+    /** POST signup: 엔진 가입(중복 메일·비밀번호 규칙·약관 동의 기록·본인인증 정책·환영 알림은 엔진) → 이 기기에 로그인 */
+    public static function signup(): array
+    {
+        $accepted = array_map('intval', (array) Api::$request->input('agreements', []));
+        $password = (string) Api::param('password', '');
+        $fields = (array) Api::$request->input('fields', []);
+        $body = [
+            'email' => trim((string) Api::param('email_address', '')),
+            'name' => trim((string) Api::param('nick_name', '')),
+            'password' => $password,
+            'password_confirmation' => $password,
+            'agree_terms' => in_array(0, $accepted, true),
+            'agree_privacy' => in_array(1, $accepted, true),
+            'language' => Text::engineLocale(),
+        ];
+        foreach (['nickname', 'mobile', 'phone'] as $name) {
+            $value = $fields[$name] ?? null;
+            if (is_string($value) && trim($value) !== '') {
+                $body[$name] = trim($value);
+            }
+        }
+        [$status, $json] = Engine::call('POST', '/api/auth/register', $body);
+        if ($status < 200 || $status >= 300) {
+            $error = Engine::error($status, $json);
+            throw new ApiError($error->status === 403 ? 403 : 400, $error->status === 403 ? $error->codeName : 'signup_failed', $error->getMessage(), [], $error->raw);
+        }
+        $data = (array) ($json['data'] ?? []);
+        $uuid = (string) ($data['user']['uuid'] ?? '');
+        $user = $uuid !== '' ? User::where('uuid', $uuid)->first() : null;
+        if (! $user || ! in_array((string) ($user->status instanceof \BackedEnum ? $user->status->value : $user->status), ['', 'active'], true)) {
+            // 가입 뒤 본인인증·승인을 기다리는 사이트(엔진 정책): 바로 로그인하지 않는다
+            return ['needs_confirm' => false, 'logged_in' => false];
+        }
+        [$tokens] = Store::issue($user, (string) ($data['token'] ?? ''), (string) Api::param('device_name', ''), (string) Api::param('platform', ''), (string) Api::$request->ip());
+
+        return ['needs_confirm' => false, 'logged_in' => true, 'tokens' => $tokens, 'member' => Api::profile($user)];
     }
 
     public static function webOnly(): array
