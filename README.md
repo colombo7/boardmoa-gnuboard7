@@ -5,7 +5,7 @@
 스마트폰 게시판 앱 **게시판모아**가 그누보드7 사이트의 게시판을 읽고 쓸 수 있게 하는 플러그인입니다.
 
 - 앱 받기: [iPhone·iPad (App Store)](https://apps.apple.com/app/id6826114071) · [Android (Google Play)](https://play.google.com/store/apps/details?id=com.easyapplabs.boardmoa)
-- 그누보드5 는 [boardmoa-gnuboard](https://github.com/colombo7/boardmoa-gnuboard), XE 1.11·Rhymix 는 [boardmoa-appapi](https://github.com/colombo7/boardmoa-appapi), XE3 는 [boardmoa-appapi-xe3](https://github.com/colombo7/boardmoa-appapi-xe3), WordPress 는 [boardmoa-wordpress](https://github.com/colombo7/boardmoa-wordpress) 를 설치합니다.
+- 그누보드5 는 [boardmoa-gnuboard](https://github.com/easyapplabs/boardmoa-gnuboard), XE 1.11·Rhymix 는 [boardmoa-appapi](https://github.com/easyapplabs/boardmoa-appapi), XE3 는 [boardmoa-appapi-xe3](https://github.com/easyapplabs/boardmoa-appapi-xe3), WordPress 는 [boardmoa-wordpress](https://github.com/easyapplabs/boardmoa-wordpress) 를 설치합니다.
 
 그누보드7 용어로 이것은 **플러그인**입니다(게시판처럼 큰 기능 묶음은 '모듈', 덧붙여 설치하는 것은 '플러그인'). 아래의 '게시판 모듈'은 그누보드7 에 든 게시판(sirsoft-board)을 말합니다.
 
@@ -31,8 +31,8 @@
 ## 설치
 그누보드7 관리자 화면에서 설치합니다. 둘 중 하나로 합니다.
 
-- **GitHub 주소로:** 관리자 → 플러그인 → 설치 → GitHub 에 `https://github.com/colombo7/boardmoa-gnuboard7` 를 넣습니다.
-- **ZIP 으로:** [Releases](https://github.com/colombo7/boardmoa-gnuboard7/releases) 에서 `appapi-g7-<버전>.zip` 을 받아 관리자 → 플러그인 → 설치 → ZIP 파일로 올립니다.
+- **GitHub 주소로:** 관리자 → 플러그인 → 설치 → GitHub 에 `https://github.com/easyapplabs/boardmoa-gnuboard7` 를 넣습니다.
+- **ZIP 으로:** [Releases](https://github.com/easyapplabs/boardmoa-gnuboard7/releases) 에서 `appapi-g7-<버전>.zip` 을 받아 관리자 → 플러그인 → 설치 → ZIP 파일로 올립니다.
 
 설치한 뒤 플러그인을 **활성화**합니다. 확인: 브라우저에서 `https://<사이트>/api/plugins/easyapplabs-boardmoa/api?r=site` 를 열어
 `"ok":true` 와 `"engine":"gnuboard7"` 가 보이면 됩니다. 그 뒤 앱에서 사이트 주소를 추가하면 됩니다.
