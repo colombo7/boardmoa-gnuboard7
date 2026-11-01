@@ -12,7 +12,7 @@ use Symfony\Component\HttpFoundation\Response;
  */
 class Api
 {
-    const VERSION = '1.0.31';
+    const VERSION = '1.0.32';
 
     /** route => [메서드, 로그인 필요(true)/선택(false)/토큰 안 봄(null), 처리] */
     private const ROUTES = [
