@@ -115,12 +115,14 @@ class Boards
             'logo_url' => self::siteLogo(),
             'icon_url' => self::absolute('/favicon.ico'),
             'home_mid' => self::HOME_MID,
+            // 첫 화면이 페이지인지 (1.1.0~, 앱의 '페이지로 보기'). 웹 화면은 엔진의 검색엔진용 화면 그리기로 만든다(WebPage)
+            'home_is_page' => true,
             'engine' => 'gnuboard7',
             'engine_version' => (string) config('app.version'),
             'api_version' => Api::VERSION,
             'lang' => app()->getLocale(),
             'share_site' => Registry::shareSite(),
-            'features' => ['html_write', 'guest_write', 'guest_comment', 'guest_manage', 'comment_edit', 'edit_photos', 'file_upload', 'comment_vote', 'devices', 'reply_write', 'resolve_path'],
+            'features' => ['html_write', 'guest_write', 'guest_comment', 'guest_manage', 'comment_edit', 'edit_photos', 'file_upload', 'comment_vote', 'devices', 'page_view', 'reply_write', 'resolve_path'],
             'member' => Api::profile(Api::$user),
         ];
     }
@@ -679,6 +681,22 @@ class Boards
     // ---- 페이지 · 첫 화면
 
     public static function page(): array
+    {
+        $page = self::pageContent();
+        // '페이지로 보기': 웹과 같은 화면(회원이면 회원 화면). 못 그리면 css 없이 → 앱은 앱 꾸밈으로
+        if (Api::param('with_css')) {
+            $mid = (string) $page['mid'];
+            $path = $mid === self::HOME_MID ? '/' : '/page/'.rawurlencode(substr($mid, 5));
+            $web = WebPage::render($path, (int) (Api::param('width') ?: 390));
+            if ($web) {
+                $page = array_merge($page, $web);
+            }
+        }
+
+        return $page;
+    }
+
+    private static function pageContent(): array
     {
         $mid = trim((string) Api::param('mid', ''));
         if ($mid === self::HOME_MID) {

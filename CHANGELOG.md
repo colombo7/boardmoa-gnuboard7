@@ -3,6 +3,11 @@
 게시판모아 앱 연결 플러그인(그누보드7)의 바뀐 점. 형식은 [Keep a Changelog](https://keepachangelog.com/ko/1.1.0/).
 번호는 다른 엔진(XE·Rhymix, XE3, WordPress, 그누보드5)용 연결 모듈·플러그인과 같이 올린다.
 
+## [1.1.1] - 2026-11-04
+
+### Added
+- 앱의 '페이지로 보기'(기능 `page_view`): `site.home_is_page`, `page` 의 `with_css=1` 이면 웹과 같은 화면(`rendered`·`css`·`body_class`, 본문 `data-bh-main`). 엔진의 검색엔진용 화면 그리기를 같은 요청 안에서 불러 만들고, 회원이면 회원 권한으로 그린다. 관리자가 SEO 를 꺼도 앱 화면은 그린다(사이트 설정은 그대로, 봇에게는 꺼진 채). `width`(앱 화면 폭)에 맞는 모양으로. 예전 앱은 쓰지 않는다.
+
 ## [1.0.35] - 2026-11-03
 
 ### Changed
