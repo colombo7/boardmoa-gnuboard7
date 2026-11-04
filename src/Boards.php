@@ -763,13 +763,13 @@ class Boards
         }
         if ($path !== '') {
             if (preg_match('#^/board/([A-Za-z0-9_\-]+)/(\d+)/?$#', $path, $m)) {
-                return ['mid' => $m[1], 'module' => 'board', 'title' => null, 'document_srl' => (int) $m[2]];
+                return self::resolved($m[1], (int) $m[2]);
             }
             if (preg_match('#^/board/([A-Za-z0-9_\-]+)/?$#', $path, $m)) {
-                return ['mid' => $m[1], 'module' => 'board', 'title' => null, 'document_srl' => null];
+                return self::resolved($m[1], 0);
             }
             if (preg_match('#^/page/([A-Za-z0-9_\-]+)/?$#', $path, $m)) {
-                return ['mid' => 'page-'.$m[1], 'module' => 'page', 'title' => null, 'document_srl' => null];
+                return self::resolved('page-'.$m[1], 0);
             }
             throw new ApiError(404, 'not_found', '없는 페이지입니다.');
         }
@@ -779,18 +779,27 @@ class Boards
             $boardId = \Modules\Sirsoft\Board\Models\Post::whereKey($srl)->value('board_id');
             $mid = $boardId ? (string) Board::whereKey($boardId)->value('slug') : '';
         }
-        if ($mid === '') {
-            throw new ApiError(404, 'not_found', '없는 페이지입니다.');
-        }
-        if ($mid === self::HOME_MID || str_starts_with($mid, 'page-')) {
-            return ['mid' => $mid, 'module' => 'page', 'title' => null, 'document_srl' => null];
-        }
-        $board = Board::where('slug', $mid)->first();
-        if (! $board) {
-            throw new ApiError(404, 'not_found', '없는 페이지입니다.');
-        }
 
-        return ['mid' => $mid, 'module' => 'board', 'title' => null, 'document_srl' => $srl > 0 ? $srl : null];
+        return self::resolved($mid, $srl);
+    }
+
+    /**
+     * 풀린 곳을 이 회원의 메뉴에서 찾아 제목과 함께 (1.1.1~: 예전엔 title 이 null 이라 앱이 응답을 읽지 못해 웹으로 열었다).
+     * 메뉴에 없으면(볼 수 없는 게시판·없는 페이지) 없는 페이지 — 웹처럼 볼 수 있는 곳만 앱 화면으로
+     */
+    private static function resolved(string $mid, int $srl): array
+    {
+        if ($mid !== '') {
+            foreach (self::menu()['menus'][0]['items'] as $item) {
+                if ($item['mid'] === $mid) {
+                    $board = $item['module'] === 'board';
+
+                    return ['mid' => $mid, 'module' => $item['module'], 'title' => (string) $item['title'],
+                        'document_srl' => $board && $srl > 0 ? $srl : null];
+                }
+            }
+        }
+        throw new ApiError(404, 'not_found', '없는 페이지입니다.');
     }
 
     /** 첨부 받기: 엔진 다운로드 API 를 그대로(권한·비밀글·다운로드 기록은 엔진) */
