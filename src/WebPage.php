@@ -34,6 +34,99 @@ final class WebPage
         return $html === null ? null : self::clean($html);
     }
 
+    /**
+     * 앱 메뉴를 웹 메뉴와 같게 (새 앱이 menu 에 web_pages=1 을 보낼 때, 1.1.4~).
+     * 손으로 정하지 않고 엔진이 그린 첫 화면에서 읽는다: 머리(<header>)의 메뉴 줄 순서대로(웹의 '더보기'에 접힌 게시판도
+     * 이어서 펼친다 — 사용자 결정), 꼬리(<footer>)의 묶음(제목 h4 + 링크)은 그 이름 그대로. 게시판·페이지는 이 회원이 볼 수 있는 것만,
+     * 그 밖의 같은 사이트 주소(인기·쇼핑 등)는 웹 화면 전용 페이지 'web:<경로>'. 그리지 못하면 null (앱 메뉴는 예전대로)
+     */
+    public static function siteMenu(array $known): ?array
+    {
+        try {
+            $html = self::renderHtml('/');
+        } catch (\Throwable $e) {
+            return null;
+        }
+        if ($html === null) {
+            return null;
+        }
+        $dom = new \DOMDocument();
+        $previous = libxml_use_internal_errors(true);
+        $dom->loadHTML('<?xml encoding="utf-8"?>'.$html, LIBXML_HTML_NODEFDTD);
+        libxml_clear_errors();
+        libxml_use_internal_errors($previous);
+        $header = $dom->getElementsByTagName('header')->item(0);
+        if (! $header) {
+            return null;
+        }
+        $home = $known[Boards::HOME_MID] ?? null;
+        $items = $home ? [$home] : [];
+        $seen = [Boards::HOME_MID => true];
+        foreach ($header->getElementsByTagName('nav') as $nav) {
+            foreach ($nav->getElementsByTagName('a') as $a) {
+                $item = self::menuItem($a, $known);
+                if (! $item || isset($seen[$item['mid']])) {
+                    continue;
+                }
+                $seen[$item['mid']] = true;
+                $items[] = $item;
+            }
+        }
+        $footer = $dom->getElementsByTagName('footer')->item(0);
+        foreach ($footer ? $footer->getElementsByTagName('h4') : [] as $h) {
+            $children = [];
+            foreach ($h->parentNode->getElementsByTagName('a') as $a) {
+                $item = self::menuItem($a, $known);
+                if ($item && ! isset($seen[$item['mid']])) {
+                    $seen[$item['mid']] = true;
+                    $children[] = $item;
+                }
+            }
+            if ($children) {
+                $items[] = self::section(trim($h->textContent), $children);
+            }
+        }
+
+        return count($items) > 1 ? $items : null;
+    }
+
+    private static function section(string $title, array $children): array
+    {
+        return ['title' => $title, 'mid' => null, 'module' => null, 'grant' => null, 'url' => null, 'open_window' => false, 'children' => $children];
+    }
+
+    /** 메뉴 링크 하나 → 앱 메뉴 항목. 게시판·페이지는 이 회원 메뉴에 있는 것만(이름은 웹 그대로), 로그인·가입·내 정보 같은 회원 기능은 뺀다 */
+    private static function menuItem(\DOMElement $a, array $known): ?array
+    {
+        $href = html_entity_decode($a->getAttribute('href'), ENT_QUOTES, 'UTF-8');
+        $base = Boards::base();
+        if (str_starts_with($href, $base)) {
+            $href = substr($href, strlen($base));
+        }
+        $path = (string) parse_url($href, PHP_URL_PATH);
+        if ($path === '' || $path[0] !== '/' || str_starts_with($href, '//') || $path === '/' || parse_url($href, PHP_URL_HOST)) {
+            return null;
+        }
+        $title = trim(preg_replace('/\s+/u', ' ', $a->textContent));
+        if (preg_match('#^/board/([A-Za-z0-9_\-]+)/?$#', $path, $m)) {
+            $item = $known[$m[1]] ?? null;
+        } elseif (preg_match('#^/page/([A-Za-z0-9_\-]+)/?$#', $path, $m)) {
+            $item = $known['page-'.$m[1]] ?? null;
+        } elseif (preg_match('#^/(api|admin|login|logout|register|password|mypage|cart|checkout|orders?)(/|$)#', $path) || $title === '') {
+            return null;
+        } else {
+            $item = ['title' => $title, 'mid' => 'web:'.$path, 'module' => 'page', 'grant' => null, 'url' => $base.$path, 'open_window' => false, 'children' => []];
+        }
+        if (! $item) {
+            return null;
+        }
+        if ($title !== '') {
+            $item['title'] = $title;
+        }
+
+        return $item;
+    }
+
     private static function renderHtml(string $path): ?string
     {
         if (! interface_exists(\App\Seo\Contracts\SeoRendererInterface::class) || ! class_exists(\App\Seo\SeoRenderer::class)) {
@@ -50,21 +143,6 @@ final class WebPage
                     ? $request->withHeader('Authorization', 'Bearer '.$bearer)
                     : $request;
             });
-        }
-        // 웹(React)이 레이아웃 공통 값으로 계산하는 쇼핑몰 주소 앞머리(_global.shopBase)를 SEO 그리기는 채우지 못해
-        // 쇼핑몰 링크가 /products(404)가 된다. 웹과 같은 식(이커머스 설정 basic_info.no_route·route_path)으로 넣는다
-        if (class_exists(\App\Extension\HookManager::class) && function_exists('g7_module_settings')) {
-            $route = g7_module_settings('sirsoft-ecommerce', 'basic_info.route_path');
-            if ($route !== null) {
-                $base = g7_module_settings('sirsoft-ecommerce', 'basic_info.no_route') ? '' : '/'.((string) $route ?: 'shop');
-                \App\Extension\HookManager::addFilter('core.seo.filter_context', function ($context) use ($base) {
-                    if (is_array($context)) {
-                        $context['_global']['shopBase'] = $base;
-                    }
-
-                    return $context;
-                });
-            }
         }
         $renderer = self::layoutCompatible()
             ? app()->make(\App\Seo\SeoRenderer::class, ['layoutService' => app()->make(SeoLayout::class)])
@@ -128,6 +206,7 @@ final class WebPage
             }
         }
 
+        self::repairLinks($body);
         $main = self::mainOf($body);
         if (! $main) {
             return null;
@@ -160,6 +239,55 @@ final class WebPage
             'body_class' => trim($body->getAttribute('class')),
             'rendered' => true,
         ];
+    }
+
+    /**
+     * 엔진의 SEO 그리기는 테마 계산식의 글자 더하기('/' + …)를 계산하지 못해, 주소 앞머리가 계산식인 링크가 빈 앞머리로 나온다
+     * (예: 쇼핑몰 {{shopBase}}/products → /products, 404). 엔진의 화면 경로표(TemplateRouteResolver)에 없는 주소이면,
+     * 앞머리가 계산식인 경로 중 그 식을 뺀 꼴이 같은 것을 찾아 엔진이 풀어 준 실제 주소로 바꾼다 (하나로 정해질 때만, 사이트·테마와 상관없이)
+     */
+    private static function repairLinks(\DOMElement $body): void
+    {
+        try {
+            if (! class_exists(\App\Seo\TemplateRouteResolver::class)) {
+                return;
+            }
+            $resolver = app(\App\Seo\TemplateRouteResolver::class);
+            $load = new \ReflectionMethod($resolver, 'loadActiveRoutes');
+            $load->setAccessible(true);
+            $loaded = $load->invoke($resolver, 'user');
+            $resolve = new \ReflectionMethod($resolver, 'resolveRoutePath');
+            $resolve->setAccessible(true);
+        } catch (\Throwable $e) {
+            return;
+        }
+        $templated = [];
+        foreach ((array) ($loaded[1] ?? []) as $route) {
+            $raw = (string) ($route['path'] ?? '');
+            if (str_contains($raw, '{{')) {
+                $bare = '/'.trim((string) preg_replace(['/\{\{.+?\}\}/', '#/+#'], ['', '/'], ltrim($raw, '*')), '/');
+                $templated[$bare][] = $raw;
+            }
+        }
+        if (! $templated) {
+            return;
+        }
+        $base = Boards::base();
+        foreach ($body->getElementsByTagName('a') as $a) {
+            $href = $a->getAttribute('href');
+            $rel = str_starts_with($href, $base) ? substr($href, strlen($base)) : $href;
+            if ($rel === '' || $rel[0] !== '/' || str_starts_with($rel, '//')) {
+                continue;
+            }
+            $path = (string) parse_url($rel, PHP_URL_PATH);
+            if (! isset($templated[$path]) || $resolver->routeExists($path)) {
+                continue;
+            }
+            $fixed = array_values(array_unique(array_map(fn ($raw) => (string) $resolve->invoke($resolver, $raw), $templated[$path])));
+            if (count($fixed) === 1 && $fixed[0] !== $path && $resolver->routeExists($fixed[0])) {
+                $a->setAttribute('href', substr($rel, 0, 0).$fixed[0].substr($rel, strlen($path)));
+            }
+        }
     }
 
     /** 본문 칸: <main>, 없으면 머리(<header>)와 꼬리(<footer>) 사이의 칸 중 글이 가장 많은 것 */

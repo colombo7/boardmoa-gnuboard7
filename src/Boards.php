@@ -176,6 +176,15 @@ class Boards
                 'url' => self::base().'/page/'.$p['slug'], 'open_window' => false, 'children' => []];
         }
 
+        // 새 앱(web_pages=1): 웹 메뉴와 같은 구성·순서·이름 (엔진이 그린 첫 화면의 머리·꼬리 메뉴에서, WebPage::siteMenu). 못 읽으면 위 메뉴
+        if (Api::param('web_pages')) {
+            $known = [];
+            foreach ($items as $item) {
+                $known[$item['mid']] = $item;
+            }
+            $items = WebPage::siteMenu($known) ?? $items;
+        }
+
         return ['menus' => [['id' => 'main', 'title' => (string) (g7_core_settings('general.site_name') ?: ''), 'items' => $items]]];
     }
 
@@ -682,6 +691,21 @@ class Boards
 
     public static function page(): array
     {
+        // 웹 화면 전용 메뉴 항목(인기·쇼핑 등, 'web:<경로>'): 앱 화면이 없어 늘 웹 모양으로 (web_only, 1.1.4~)
+        $mid = (string) Api::param('mid', '');
+        if (str_starts_with($mid, 'web:')) {
+            // 'web:<경로>[?조건]' — 같은 화면의 조건(인기의 기간 등)도 웹처럼
+            $path = substr($mid, 4);
+            if (! preg_match('#^/[A-Za-z0-9_\-./]*(\?[A-Za-z0-9_\-.=&%]*)?$#', $path) || str_contains($path, '..') || preg_match('#^/(api|admin)(/|\?|$)#', $path)) {
+                throw new ApiError(404, 'not_found', '없는 페이지입니다.');
+            }
+            $web = WebPage::render($path, (int) (Api::param('width') ?: 390));
+            if (! $web) {
+                throw new ApiError(404, 'not_found', '없는 페이지입니다.');
+            }
+
+            return ['mid' => $mid, 'title' => '', 'page_type' => 'article', 'web_url' => self::base().$path, 'web_only' => true] + $web;
+        }
         $page = self::pageContent();
         // '페이지로 보기': 웹과 같은 화면(회원이면 회원 화면). 못 그리면 css 없이 → 앱은 앱 꾸밈으로
         if (Api::param('with_css')) {
