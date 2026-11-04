@@ -51,6 +51,21 @@ final class WebPage
                     : $request;
             });
         }
+        // 웹(React)이 레이아웃 공통 값으로 계산하는 쇼핑몰 주소 앞머리(_global.shopBase)를 SEO 그리기는 채우지 못해
+        // 쇼핑몰 링크가 /products(404)가 된다. 웹과 같은 식(이커머스 설정 basic_info.no_route·route_path)으로 넣는다
+        if (class_exists(\App\Extension\HookManager::class) && function_exists('g7_module_settings')) {
+            $route = g7_module_settings('sirsoft-ecommerce', 'basic_info.route_path');
+            if ($route !== null) {
+                $base = g7_module_settings('sirsoft-ecommerce', 'basic_info.no_route') ? '' : '/'.((string) $route ?: 'shop');
+                \App\Extension\HookManager::addFilter('core.seo.filter_context', function ($context) use ($base) {
+                    if (is_array($context)) {
+                        $context['_global']['shopBase'] = $base;
+                    }
+
+                    return $context;
+                });
+            }
+        }
         $renderer = self::layoutCompatible()
             ? app()->make(\App\Seo\SeoRenderer::class, ['layoutService' => app()->make(SeoLayout::class)])
             : app(\App\Seo\Contracts\SeoRendererInterface::class);
