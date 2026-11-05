@@ -4,7 +4,7 @@
 
 스마트폰 게시판 앱 **게시판모아**가 그누보드7 사이트의 게시판을 읽고 쓸 수 있게 하는 플러그인입니다.
 
-- 앱 받기: [iPhone·iPad (App Store)](https://apps.apple.com/app/id6826114071) · [Android (Google Play)](https://play.google.com/store/apps/details?id=com.easyapplabs.boardmoa)
+- 앱 받기: [iPhone·iPad (App Store)](https://apps.apple.com/kr/app/id6826114071) · [Android (Google Play)](https://play.google.com/store/apps/details?id=com.easyapplabs.boardmoa)
 - 그누보드5 는 [boardmoa-gnuboard](https://github.com/easyapplabs/boardmoa-gnuboard), XE 1.11·Rhymix 는 [boardmoa-appapi](https://github.com/easyapplabs/boardmoa-appapi), XE3 는 [boardmoa-appapi-xe3](https://github.com/easyapplabs/boardmoa-appapi-xe3), WordPress 는 [boardmoa-wordpress](https://github.com/easyapplabs/boardmoa-wordpress) 를 설치합니다.
 
 그누보드7 용어로 이것은 **플러그인**입니다(게시판처럼 큰 기능 묶음은 '모듈', 덧붙여 설치하는 것은 '플러그인'). 아래의 '게시판 모듈'은 그누보드7 에 든 게시판(sirsoft-board)을 말합니다.
