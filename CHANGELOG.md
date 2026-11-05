@@ -3,6 +3,11 @@
 게시판모아 앱 연결 플러그인(그누보드7)의 바뀐 점. 형식은 [Keep a Changelog](https://keepachangelog.com/ko/1.1.0/).
 번호는 다른 엔진(XE·Rhymix, XE3, WordPress, 그누보드5)용 연결 모듈·플러그인과 같이 올린다.
 
+## [1.1.5] - 2026-11-06
+
+### Added
+- 라이선스 파일(LICENSE, GPL v2 이상)과 composer.json 의 license 표기.
+
 ## [1.1.4] - 2026-11-05
 
 ### Added
