@@ -3,6 +3,11 @@
 게시판모아 앱 연결 플러그인(그누보드7)의 바뀐 점. 형식은 [Keep a Changelog](https://keepachangelog.com/ko/1.1.0/).
 번호는 다른 엔진(XE·Rhymix, XE3, WordPress, 그누보드5)용 연결 모듈·플러그인과 같이 올린다.
 
+## [1.1.14] - 2026-11-06
+
+### Added
+- 접근 토큰을 `X-AppApi-Token` 머리말로도 받는다: 공유 호스팅·프록시가 `Authorization` 을 넘기지 않을 때(앱 2.1.2~ 이 함께 보냄). `Authorization` 이 있으면 그것을 쓴다.
+
 ## [1.1.13] - 2026-11-06
 
 ### Changed

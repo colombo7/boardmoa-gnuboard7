@@ -12,7 +12,7 @@ use Symfony\Component\HttpFoundation\Response;
  */
 class Api
 {
-    const VERSION = '1.1.13';
+    const VERSION = '1.1.14';
 
     /** route => [메서드, 로그인 필요(true)/선택(false)/토큰 안 봄(null), 처리] */
     private const ROUTES = [
@@ -112,7 +112,7 @@ class Api
 
     private static function json(array $body, int $status): Response
     {
-        return response()->json($body, $status, ['Cache-Control' => 'no-store, private', 'Vary' => 'Authorization, X-App-Lang'], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+        return response()->json($body, $status, ['Cache-Control' => 'no-store, private', 'Vary' => 'Authorization, X-AppApi-Token, X-App-Lang'], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
     }
 
     public static function message(string $code): string
@@ -166,7 +166,12 @@ class Api
             $header = (string) ($_SERVER['REDIRECT_HTTP_AUTHORIZATION'] ?? '');
         }
 
-        return stripos($header, 'Bearer ') === 0 ? trim(substr($header, 7)) : '';
+        if (stripos($header, 'Bearer ') === 0) {
+            return trim(substr($header, 7));
+        }
+
+        // 공유 호스팅·프록시가 Authorization 을 떨어뜨려도: 앱이 같은 토큰을 이 머리말로 한 번 더 보낸다
+        return trim((string) self::$request->header('X-AppApi-Token', ''));
     }
 
     /** Bearer 토큰으로 회원을 확인하고 이번 요청의 엔진 호출에 그 토큰을 넘긴다 */

@@ -41,7 +41,7 @@ class Engine
         // 원래 요청의 접속 정보(IP·프록시 머리말)는 그대로 둔다: 엔진의 IP 별 제한·기록이 웹과 같게.
         // Accept-Encoding 은 뺀다: 앱이 gzip 을 받는다고 하면 엔진(GzipEncodeResponse)이 안쪽 응답을 압축해 JSON 으로 읽지 못한다
         foreach (array_keys($server) as $key) {
-            if (in_array($key, ['CONTENT_TYPE', 'CONTENT_LENGTH', 'HTTP_CONTENT_TYPE', 'HTTP_CONTENT_LENGTH', 'HTTP_AUTHORIZATION', 'REDIRECT_HTTP_AUTHORIZATION',
+            if (in_array($key, ['CONTENT_TYPE', 'CONTENT_LENGTH', 'HTTP_CONTENT_TYPE', 'HTTP_CONTENT_LENGTH', 'HTTP_AUTHORIZATION', 'REDIRECT_HTTP_AUTHORIZATION', 'HTTP_X_APPAPI_TOKEN',
                 'HTTP_ACCEPT', 'HTTP_ACCEPT_LANGUAGE', 'HTTP_ACCEPT_ENCODING', 'HTTP_X_TIMEZONE', 'HTTP_COOKIE', 'PATH_INFO', 'ORIG_PATH_INFO', 'QUERY_STRING', 'REQUEST_URI'], true)
                 || str_starts_with($key, 'HTTP_X_BOARD_')) {
                 unset($server[$key]);
