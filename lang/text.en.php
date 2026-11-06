@@ -99,4 +99,5 @@ return [
     '휴대폰 번호' => 'Mobile number',
     '블라인드 처리된 게시글입니다.' => 'This post has been hidden.',
     '블라인드 처리된 댓글입니다.' => 'This comment has been hidden.',
+    '그 밖의 게시판' => 'Other boards',
 ];

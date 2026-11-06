@@ -182,10 +182,45 @@ class Boards
             foreach ($items as $item) {
                 $known[$item['mid']] = $item;
             }
-            $items = WebPage::siteMenu($known) ?? $items;
+            $site = WebPage::siteMenu($known);
+            // 웹 메뉴에 게시판이 하나도 없으면(첫 화면 머리에 다른 링크만 있는 테마) 예전 메뉴로 (1.1.12~)
+            if ($site !== null && self::hasBoard($site)) {
+                // 게시판 메뉴(board-menu)에 있지만 웹 머리·꼬리 메뉴에 없는 게시판은 끝에 '그 밖의 게시판' 묶음으로
+                $placed = [];
+                $walk = function (array $list) use (&$walk, &$placed) {
+                    foreach ($list as $it) {
+                        if (! empty($it['mid'])) {
+                            $placed[$it['mid']] = true;
+                        }
+                        $walk($it['children'] ?? []);
+                    }
+                };
+                $walk($site);
+                $others = [];
+                foreach ($items as $it) {
+                    if (($it['module'] ?? null) === 'board' && ! isset($placed[$it['mid']])) {
+                        $others[] = $it;
+                    }
+                }
+                if ($others) {
+                    $site[] = ['title' => Text::t('그 밖의 게시판'), 'mid' => null, 'module' => null, 'grant' => null, 'url' => null, 'open_window' => false, 'children' => $others];
+                }
+                $items = $site;
+            }
         }
 
         return ['menus' => [['id' => 'main', 'title' => (string) (g7_core_settings('general.site_name') ?: ''), 'items' => $items]]];
+    }
+
+    private static function hasBoard(array $items): bool
+    {
+        foreach ($items as $it) {
+            if (($it['module'] ?? null) === 'board' || self::hasBoard($it['children'] ?? [])) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /** 공개 페이지(sirsoft-page, 발행된 것) [{slug, title}] — 엔진 공개 API 로 열리는 것만 */

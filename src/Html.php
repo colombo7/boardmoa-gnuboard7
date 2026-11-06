@@ -14,9 +14,10 @@ class Html
         $html = preg_replace_callback('#\b(src|href|poster)=(["\'])(/(?!/)[^"\']*)\2#i', function ($m) use ($base) {
             return $m[1].'='.$m[2].$base.$m[3].$m[2];
         }, $html) ?? $html;
-        $host = preg_quote((string) parse_url($base, PHP_URL_HOST), '#');
+        // http/https, www. 유무, 모바일 주소(m.)는 같은 사이트 (앱과 같은 기준)
+        $host = preg_quote((string) preg_replace('/^(www|m)\.(?=[^.]+\.[^.]+)/i', '', (string) parse_url($base, PHP_URL_HOST)), '#');
 
-        return preg_replace_callback('#\bhref=(["\'])(https?://(?:www\.)?'.$host.'/board/([A-Za-z0-9_\-]+)/(\d+))(["\'])#i', function ($m) {
+        return preg_replace_callback('#\bhref=(["\'])(https?://(?:(?:www|m)\.)?'.$host.'/board/([A-Za-z0-9_\-]+)/(\d+))(["\'])#i', function ($m) {
             return 'href='.$m[1].$m[2].'?mid='.rawurlencode($m[3]).'&amp;document_srl='.$m[4].$m[5];
         }, $html) ?? $html;
     }

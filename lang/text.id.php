@@ -99,4 +99,5 @@ return [
     '휴대폰 번호' => 'Nomor ponsel',
     '블라인드 처리된 게시글입니다.' => 'Postingan ini telah disembunyikan.',
     '블라인드 처리된 댓글입니다.' => 'Komentar ini telah disembunyikan.',
+    '그 밖의 게시판' => 'Forum lainnya',
 ];

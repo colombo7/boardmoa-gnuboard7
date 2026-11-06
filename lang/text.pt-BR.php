@@ -99,4 +99,5 @@ return [
     '휴대폰 번호' => 'Número de celular',
     '블라인드 처리된 게시글입니다.' => 'Este post foi ocultado.',
     '블라인드 처리된 댓글입니다.' => 'Este comentário foi ocultado.',
+    '그 밖의 게시판' => 'Outros fóruns',
 ];

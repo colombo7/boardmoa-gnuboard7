@@ -99,4 +99,5 @@ return [
     '휴대폰 번호' => 'Handynummer',
     '블라인드 처리된 게시글입니다.' => 'Dieser Beitrag wurde ausgeblendet.',
     '블라인드 처리된 댓글입니다.' => 'Dieser Kommentar wurde ausgeblendet.',
+    '그 밖의 게시판' => 'Weitere Foren',
 ];
