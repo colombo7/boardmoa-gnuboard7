@@ -502,4 +502,19 @@ class Write
 
         return ['declared' => true];
     }
+
+    /** 댓글 신고 (1.1.20~): 웹 댓글 더보기의 신고와 같은 엔진 API */
+    public static function commentDeclare(): array
+    {
+        $slug = Boards::slugParam();
+        $id = Api::intParam('comment_srl');
+        $reason = trim((string) Api::param('reason', ''));
+        [$status, $json] = Engine::call('POST', Boards::BOARD_API.'/'.rawurlencode($slug).'/comments/'.$id.'/reports',
+            ['reason_type' => 'other', 'reason_detail' => $reason !== '' ? mb_substr($reason, 0, 1000) : Text::t('앱에서 신고했습니다.')]);
+        if ($status < 200 || $status >= 300) {
+            throw Engine::error($status, $json);
+        }
+
+        return ['declared' => true];
+    }
 }

@@ -633,6 +633,12 @@ class Boards
         $up = $types['like'] ?? null;
         $down = $types['dislike'] ?? null;
         $member = Api::$user !== null;
+        // 웹 글 화면(sirsoft-basic show.json)과 같은 조건: 잠긴 비밀글(본문 null)에는 반응·신고 없음,
+        // 블라인드·삭제된 글에는 스크랩 없음, 블라인드 글에는 신고 없음
+        $locked = ! empty($post['is_secret']) && array_key_exists('content', $post) && $post['content'] === null;
+        $blinded = ($post['status'] ?? '') === 'blinded';
+        $deleted = ! empty($post['deleted_at']);
+        $use = $use && ! $locked;
 
         return [
             'vote_up' => ['enabled' => $use && $up !== null, 'count' => $up !== null ? (int) ($counts[$up] ?? 0) : 0, 'public' => false],
@@ -640,9 +646,13 @@ class Boards
             'my_vote' => $mine !== null && (int) $mine === $up ? 1 : ($mine !== null && (int) $mine === $down ? -1 : 0),
             'can_cancel_vote' => true,
             'is_mine' => ! empty($post['is_author']),
-            'can_scrap' => $member && ! empty($board['use_scrap']),
-            'can_declare' => $member && ! empty($board['use_report']) && empty($post['is_author']) && empty($post['is_already_reported']),
+            // 웹은 비회원에게도 스크랩 단추를 보이고 누르면 로그인을 묻는다 (1.1.20~, 앱도 같게)
+            'can_scrap' => ! empty($board['use_scrap']) && ! $blinded && ! $deleted,
+            'can_declare' => $member && ! empty($board['use_report']) && empty($post['is_author']) && empty($post['is_already_reported'])
+                && ! $blinded && ! $locked,
             'scrapped' => ! empty($post['is_scraped']),
+            // 이미 신고한 글: 웹은 '신고됨' 단추를 보인다 (1.1.20~)
+            'declared' => $member && ! empty($board['use_report']) && empty($post['is_author']) && ! empty($post['is_already_reported']) && ! $blinded && ! $locked,
         ];
     }
 
@@ -675,8 +685,10 @@ class Boards
                 $types[(string) $t['code']] = (int) $t['id'];
             }
         }
-        $useVote = ! empty($board['use_comment_reaction']);
+        // 웹 댓글(_comment_item.json)처럼 게시판의 「반응 사용」과 「댓글 반응 사용」이 모두 켜졌을 때만
+        $useVote = ! empty($board['use_reaction']) && ! empty($board['use_comment_reaction']);
         $canWrite = ! empty($post['abilities']['can_write_comments']);
+        $member = Api::$user !== null;
         $manage = ! empty($post['abilities']['can_manage']);
         $items = [];
         foreach ($rows as $c) {
@@ -692,6 +704,8 @@ class Boards
             $up = $types['like'] ?? null;
             $down = $types['dislike'] ?? null;
             $my = $c['my_reaction_type_id'] ?? null;
+            // 웹처럼 삭제·블라인드·잠긴 비밀 댓글(내용 null)에는 반응 단추를 내지 않는다
+            $lockedComment = ! empty($c['is_secret']) && array_key_exists('content', $c) && $c['content'] === null;
             $items[] = [
                 'comment_srl' => (int) $c['id'],
                 'parent_srl' => (int) ($c['parent_id'] ?? 0),
@@ -706,9 +720,13 @@ class Boards
                     ? htmlspecialchars(Text::t('블라인드 처리된 댓글입니다.'), ENT_QUOTES, 'UTF-8')
                     : nl2br(htmlspecialchars((string) ($c['content'] ?? ''), ENT_QUOTES, 'UTF-8'))),
                 'vote_count' => $up !== null ? (int) ($counts[$up] ?? 0) : 0,
-                'vote' => $useVote && ! $deleted ? [
-                    'up' => ['enabled' => $up !== null, 'count' => $up !== null ? (int) ($counts[$up] ?? 0) : 0],
-                    'down' => ['enabled' => $down !== null, 'count' => $down !== null ? (int) ($counts[$down] ?? 0) : 0],
+                // 신고 (1.1.20~): 웹 댓글 더보기와 같은 조건(회원·게시판 신고 사용·남의 댓글·삭제/블라인드 아님), 이미 신고했으면 '신고됨'
+                'can_declare' => $member && ! empty($board['use_report']) && ! $mine && ! $deleted && ! $blindedComment && empty($c['is_already_reported']),
+                'declared' => $member && ! empty($board['use_report']) && ! $mine && ! $deleted && ! $blindedComment && ! empty($c['is_already_reported']),
+                'vote' => $useVote && ! $deleted && ! $blindedComment && ! $lockedComment ? [
+                    // 내 댓글: 웹은 반응 단추를 흐리게 보이고 누르면 안내만 한다 → 보이되 못 누름(shown, 1.1.20~)
+                    'up' => ['enabled' => $up !== null && ! $mine, 'count' => $up !== null ? (int) ($counts[$up] ?? 0) : 0, 'shown' => $up !== null],
+                    'down' => ['enabled' => $down !== null && ! $mine, 'count' => $down !== null ? (int) ($counts[$down] ?? 0) : 0, 'shown' => $down !== null],
                     'my_vote' => $my !== null && (int) $my === $up ? 1 : ($my !== null && (int) $my === $down ? -1 : 0),
                     'can_cancel' => true,
                 ] : null,
